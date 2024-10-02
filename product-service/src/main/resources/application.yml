@@ -3,3 +3,8 @@ spring:
     name: product-service
 server:
   port: 8081
+
+# Below are actuator configurations
+management:
+  tracing:
+    enabled: true

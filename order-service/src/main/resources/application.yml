@@ -3,3 +3,8 @@ spring:
     name: order-service
 server:
   port: 8083
+
+# Below are actuator configurations
+management:
+  tracing:
+    enabled: true

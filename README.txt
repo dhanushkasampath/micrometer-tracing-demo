@@ -94,11 +94,131 @@ Since Spring Cloud Sleuth is deprecated with Spring Boot 3+, This demo will show
 --------------- New Implementation Steps -----------------------------------------
 
 1. implement 3 microservices as 
-product-service
-user-service
-order-service
+product-service - 8081
+user-service - 8082
+order-service - 8083
 
 
+2. add below dependencies to every microservice
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+			<version>3.3.1</version>
+		</dependency>
+
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-tracing</artifactId>
+			<version>1.3.1</version>
+		</dependency>
+
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-tracing-bridge-brave</artifactId> 
+			<version>1.3.1</version>
+		</dependency>
+
+
+3. add below property to application.yml file
+
+management:
+  tracing:
+    enabled: true
+
+
+4. implement the HttpRequest headers as follows
+
+
+package com.learn.order_service.controller;
+
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
+@Slf4j
+@RestController
+@RequestMapping("/order")
+@RequiredArgsConstructor
+public class OrderController {
+
+    private final Tracer tracer;  // Injected tracer to get trace information
+
+    @GetMapping("/details")
+    public ResponseEntity<String> getData() throws IOException, InterruptedException {
+        log.info("request received to order service");
+
+        // Get the current span and trace context
+        var currentSpan = tracer.currentSpan();
+
+        if (currentSpan == null) {
+            throw new IllegalStateException("No active span found, tracing is not working");
+        }
+
+        String responseFromUserService = callUserService(currentSpan);
+        return ResponseEntity.ok("Hello from order-service..." + "|" + responseFromUserService);
+    }
+
+    private String callUserService(Span currentSpan) throws IOException, InterruptedException {
+        HttpClient httpClient = HttpClient.newHttpClient();
+        HttpRequest userRequest = HttpRequest.newBuilder(
+                        URI.create("http://localhost:8082/user/details"))
+                .header("X-B3-TraceId", currentSpan.context().traceId())
+                .header("X-B3-SpanId", currentSpan.context().spanId())
+                .header("X-B3-Sampled", currentSpan.context().sampled() ? "1" : "0")
+                .GET()
+                .build();
+
+        HttpResponse<String> userResponse = httpClient.send(userRequest, HttpResponse.BodyHandlers.ofString());
+
+        return userResponse.body();
+    }
+}
+
+
+
+5. Then make an api call to order-service.
+
+http://localhost:8083/order/details
+
+Then api call chaining happens as follows
+
+order-service -> user-service -> product-service
+
+
+LOG OF PRODUCT SERVICE
+======================
+
+2024-10-02T14:30:46.647+05:30  INFO 32409 --- [product-service] [nio-8081-exec-1] [66fd0bbe9d64dd3cf6ecd43cd728c7ab-d1e1cfb576906791] c.l.p.controller.ProductController       : request received to product service
+
+
+LOG OF USER SERVICE
+======================
+
+2024-10-02T14:30:46.396+05:30  INFO 32547 --- [user-service] [nio-8082-exec-1] [66fd0bbe9d64dd3cf6ecd43cd728c7ab-5621facd8e0c5866] c.l.u.controller.UserController          : request received to user service
+
+LOG OF ORDER SERVICE
+======================
+
+2024-10-02T14:30:46.113+05:30  INFO 32702 --- [order-service] [nio-8083-exec-1] [66fd0bbe9d64dd3cf6ecd43cd728c7ab-f6ecd43cd728c7ab] c.l.o.controller.OrderController         : request received to order service
+
+
+In the above log lines we can see "66fd0bbe9d64dd3cf6ecd43cd728c7ab" is common to every microservice. That is the trace id.
+Also there is another Id which is unique to each microservice. That is spanId
+
+
+Yeeee.... Thats All related to destributed tracing using micrometer
 
 
 

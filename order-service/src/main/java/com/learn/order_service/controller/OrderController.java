@@ -1,5 +1,8 @@
 package com.learn.order_service.controller;
 
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,23 +18,33 @@ import java.net.http.HttpResponse;
 @Slf4j
 @RestController
 @RequestMapping("/order")
+@RequiredArgsConstructor
 public class OrderController {
+
+    private final Tracer tracer;  // Injected tracer to get trace information
 
     @GetMapping("/details")
     public ResponseEntity<String> getData() throws IOException, InterruptedException {
         log.info("request received to order service");
 
-        String responseFromUserService = callUserService();
+        // Get the current span and trace context
+        var currentSpan = tracer.currentSpan();
+
+        if (currentSpan == null) {
+            throw new IllegalStateException("No active span found, tracing is not working");
+        }
+
+        String responseFromUserService = callUserService(currentSpan);
         return ResponseEntity.ok("Hello from order-service..." + "|" + responseFromUserService);
     }
 
-    private String callUserService() throws IOException, InterruptedException {
+    private String callUserService(Span currentSpan) throws IOException, InterruptedException {
         HttpClient httpClient = HttpClient.newHttpClient();
         HttpRequest userRequest = HttpRequest.newBuilder(
                         URI.create("http://localhost:8082/user/details"))
-//                .header("X-B3-TraceId", currentSpan.context().traceId())
-//                .header("X-B3-SpanId", currentSpan.context().spanId())
-//                .header("X-B3-Sampled", currentSpan.context().sampled() ? "1" : "0")
+                .header("X-B3-TraceId", currentSpan.context().traceId())
+                .header("X-B3-SpanId", currentSpan.context().spanId())
+                .header("X-B3-Sampled", currentSpan.context().sampled() ? "1" : "0")
                 .GET()
                 .build();
 

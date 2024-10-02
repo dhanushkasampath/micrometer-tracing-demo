@@ -3,3 +3,8 @@ spring:
     name: user-service
 server:
   port: 8082
+
+# Below are actuator configurations
+management:
+  tracing:
+    enabled: true

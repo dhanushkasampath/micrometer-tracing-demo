@@ -1,4 +1,4 @@
-package com.learn.user_service.controller;
+package com.learn.order_service.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -14,29 +14,29 @@ import java.net.http.HttpResponse;
 
 @Slf4j
 @RestController
-@RequestMapping("/user")
-public class UserController {
+@RequestMapping("/order")
+public class OrderController {
 
     @GetMapping("/details")
     public ResponseEntity<String> getData() throws IOException, InterruptedException {
-        log.info("request received to user service");
+        log.info("request received to order service");
 
-        String responseFromProductService = callProductService();
-        return ResponseEntity.ok("Hello from user-service..." + "|" + responseFromProductService);
+        String responseFromUserService = callUserService();
+        return ResponseEntity.ok("Hello from order-service..." + "|" + responseFromUserService);
     }
 
-    private String callProductService() throws IOException, InterruptedException {
+    private String callUserService() throws IOException, InterruptedException {
         HttpClient httpClient = HttpClient.newHttpClient();
-        HttpRequest productRequest = HttpRequest.newBuilder(
-                        URI.create("http://localhost:8081/product/details"))
+        HttpRequest userRequest = HttpRequest.newBuilder(
+                        URI.create("http://localhost:8082/user/details"))
 //                .header("X-B3-TraceId", currentSpan.context().traceId())
 //                .header("X-B3-SpanId", currentSpan.context().spanId())
 //                .header("X-B3-Sampled", currentSpan.context().sampled() ? "1" : "0")
                 .GET()
                 .build();
 
-        HttpResponse<String> productResponse = httpClient.send(productRequest, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> userResponse = httpClient.send(userRequest, HttpResponse.BodyHandlers.ofString());
 
-        return productResponse.body();
+        return userResponse.body();
     }
 }

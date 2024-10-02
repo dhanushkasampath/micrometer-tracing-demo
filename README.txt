@@ -91,6 +91,13 @@ Starting with Spring Boot 3.x, Spring Cloud Sleuth has been deprecated and repla
 Since Spring Cloud Sleuth is deprecated with Spring Boot 3+, This demo will show how to use micrometer for distributed log tracing
 
 
+--------------- New Implementation Steps -----------------------------------------
+
+1. implement 3 microservices as 
+product-service
+user-service
+order-service
+
 
 
 
